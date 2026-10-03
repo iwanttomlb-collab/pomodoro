@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pomodoro</title>
+  <meta name="description" content="Pomodoro timer with tasks, a breathing and prayer reset, and a doomscroll guard.">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23ededed' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%23ff453a'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..600&family=Geist+Mono:wght@200..500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/store.js" defer></script>
+  <script src="js/audio.js" defer></script>
+  <script src="js/engine.js" defer></script>
+  <script src="js/stats.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <div class="heat" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span>pomodoro</div>
+    <nav class="tabs" aria-label="Views">
+      <button class="tab is-on" data-view="timer">Timer</button>
+      <button class="tab" data-view="stats">Stats</button>
+      <button class="tab" data-view="settings">Settings</button>
+    </nav>
+  </header>
+
+  <div id="banners" class="banners"></div>
+
+  <main class="wrap">
+    <!-- TIMER -->
+    <section id="view-timer" class="view is-on">
+      <aside class="panel tasks">
+        <div class="panel-head">
+          <h2>Tasks</h2>
+          <div class="seg" id="task-filter">
+            <button data-filter="active" class="is-on">Active</button>
+            <button data-filter="done">Done</button>
+          </div>
+        </div>
+        <form id="task-form" class="task-form" autocomplete="off">
+          <input id="task-title" type="text" placeholder="Add a task" maxlength="140" required>
+          <label class="est" title="Estimated sessions">
+            <input id="task-est" type="number" min="1" max="99" value="2" required>
+            <span>sess</span>
+          </label>
+          <button type="submit" class="btn">Add</button>
+        </form>
+        <ul id="task-list" class="task-list"></ul>
+      </aside>
+
+      <div class="timer-col">
+        <div class="panel timer" id="timer">
+          <div class="mode-row">
+            <span class="mode" id="mode-label">Ready</span>
+            <span class="cycle" id="cycle" aria-label="Sessions until long break"></span>
+          </div>
+          <div class="clock mono" id="clock">25:00</div>
+          <div class="progress"><div class="progress-fill" id="progress"></div></div>
+          <div class="now-task" id="now-task"></div>
+          <div class="now-goal" id="now-goal"></div>
+          <div class="controls" id="controls"></div>
+          <div class="ring-info mono" id="ring-info"></div>
+        </div>
+        <div class="panel today" id="today"></div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section id="view-stats" class="view">
+      <div class="stats-head">
+        <div class="seg" id="stats-tabs">
+          <button data-tab="overview" class="is-on">Overview</button>
+          <button data-tab="tasks">Tasks</button>
+          <button data-tab="doom">Doomscroll</button>
+          <button data-tab="history">History</button>
+        </div>
+        <div class="seg" id="stats-range">
+          <button data-range="7">7d</button>
+          <button data-range="14" class="is-on">14d</button>
+          <button data-range="30">30d</button>
+          <button data-range="0">All</button>
+        </div>
+      </div>
+      <div id="stats-body"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view">
+      <form id="settings-form" class="settings" novalidate>
+        <fieldset class="panel">
+          <legend>Timer</legend>
+          <label>Focus <span class="unit">min</span><input name="focusMin" type="number" min="1" max="180"></label>
+          <label>Short break <span class="unit">min</span><input name="shortBreakMin" type="number" min="1" max="120"></label>
+          <label>Long break <span class="unit">min</span><input name="longBreakMin" type="number" min="1" max="180"></label>
+          <label>Long break every <span class="unit">sessions</span><input name="longBreakEvery" type="number" min="1" max="20"></label>
+          <label>Daily goal <span class="unit">sessions</span><input name="dailyGoal" type="number" min="1" max="50"></label>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend>Reset before each session</legend>
+          <label>Breathing <span class="unit">sec</span><input name="breatheSec" type="number" min="0" max="1800"></label>
+          <label>Prayer <span class="unit">sec</span><input name="praySec" type="number" min="0" max="1800"></label>
+          <label class="wide">Prayer prompt<input name="prayerText" type="text" maxlength="200"></label>
+          <p class="hint">Set both to 0 to go straight to focus.</p>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend>Doomscroll guard</legend>
+          <label class="wide">Rings around break end <span class="unit">sec, relative to end</span><input name="ringOffsetsSec" type="text" placeholder="-60, -30, 0"></label>
+          <label class="wide">Ring intervals after break end <span class="unit">sec</span><input name="decaySec" type="text" placeholder="60, 45, 30, 20, 15, 10"></label>
+          <label>Lock after overtime <span class="unit">sec</span><input name="lockAfterSec" type="number" min="10" max="3600"></label>
+          <label>Minimum reason length <span class="unit">chars</span><input name="minReasonLength" type="number" min="5" max="500"></label>
+          <p class="hint">The last interval repeats until the lock.</p>
+          <p class="hint mono" id="ring-preview"></p>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend>Sound</legend>
+          <label class="wide">Volume<input name="volume" type="range" min="0" max="1" step="0.05"></label>
+          <div class="row"><button type="button" class="btn" id="settings-test">Test sound</button><button type="button" class="btn" id="settings-notify">Enable notifications</button><span class="hint" id="notify-status"></span></div>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend>Testing</legend>
+          <label>Speed
+            <select name="speed">
+              <option value="1">1x (real)</option>
+              <option value="10">10x</option>
+              <option value="60">60x</option>
+            </select>
+          </label>
+          <p class="hint">Fast-forwards the clock to test the rings and the lock. Takes effect on the next session. Records made at 10x or 60x are counted in your stats, so reset data afterwards if needed.</p>
+        </fieldset>
+
+        <div class="settings-actions">
+          <button type="button" class="btn ghost" id="settings-defaults">Restore defaults</button>
+          <button type="submit" class="btn primary">Save settings</button>
+        </div>
+      </form>
+
+      <div class="panel data-panel">
+        <h2>Data</h2>
+        <p class="hint" id="storage-status"></p>
+        <div class="row">
+          <button type="button" class="btn" id="export-btn">Export backup</button>
+          <label class="btn file-btn">Import backup<input type="file" id="import-file" accept="application/json,.json"></label>
+          <button type="button" class="btn danger-ghost" id="reset-btn">Reset all data</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Pre-session notice -->
+  <div class="overlay" id="notice" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="notice-title">
+      <h3 id="notice-title">Before you start</h3>
+      <p class="notice-big">Block Facebook and YouTube first.</p>
+      <label class="check"><input type="checkbox" id="nb-blocked"><span>Facebook and YouTube are blocked</span></label>
+      <label class="field">Task<select id="nb-task"></select></label>
+      <label class="field">Goal for this session<input id="nb-goal" type="text" maxlength="200" placeholder="What will be done when the timer ends?"></label>
+      <div class="row">
+        <button type="button" class="btn" id="nb-test">Test sound</button>
+        <button type="button" class="btn" id="nb-notify">Enable notifications</button>
+        <span class="hint" id="nb-status"></span>
+      </div>
+      <p class="hint">Blocking needs a browser extension such as <a href="https://www.proginosko.com/leechblock/" target="_blank" rel="noopener">LeechBlock NG</a>. <span id="nb-reset-hint"></span></p>
+      <div class="actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="button" class="btn primary" id="nb-start" disabled>Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session review -->
+  <div class="overlay" id="review" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
+      <h3 id="review-title">Session complete</h3>
+      <p class="rv-task" id="rv-task"></p>
+      <p class="hint" id="rv-goal"></p>
+      <p>Did you finish what you planned?</p>
+      <div class="choice" id="rv-choice">
+        <button type="button" class="btn" data-result="yes">Yes</button>
+        <button type="button" class="btn" data-result="partial">Partly</button>
+        <button type="button" class="btn" data-result="no">No</button>
+      </div>
+      <textarea id="rv-note" rows="2" maxlength="500" placeholder="Note (optional)"></textarea>
+      <label class="check" id="rv-done-row"><input type="checkbox" id="rv-done"><span>The whole task is done</span></label>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="rv-skip">Skip</button>
+        <button type="button" class="btn primary" id="rv-save" disabled>Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic confirm -->
+  <div class="overlay" id="confirm" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cf-title">
+      <h3 id="cf-title"></h3>
+      <p id="cf-body"></p>
+      <input id="cf-input" type="text" hidden autocomplete="off">
+      <div class="actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="button" class="btn primary" id="cf-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breathing + prayer reset -->
+  <div class="reset" id="reset" hidden>
+    <div class="reset-phase mono" id="reset-phase">Breathe</div>
+    <div class="breath" aria-hidden="true">
+      <div class="breath-ring"></div>
+      <div class="breath-core" id="breath-core"></div>
+    </div>
+    <div class="reset-cue" id="reset-cue">Breathe in</div>
+    <div class="reset-time mono" id="reset-time">3:00</div>
+    <div class="reset-task" id="reset-task"></div>
+    <div class="reset-actions">
+      <button type="button" class="link" id="reset-cancel">Cancel</button>
+      <button type="button" class="link" id="reset-skip">Skip to focus</button>
+    </div>
+  </div>
+
+  <!-- Lock -->
+  <div class="lock" id="lock" hidden>
+    <div class="lock-inner">
+      <div class="lock-label mono">Locked</div>
+      <div class="lock-clock mono" id="lock-clock">+3:00</div>
+      <p class="lock-text" id="lock-text"></p>
+      <textarea id="lock-reason" rows="4" placeholder="Why did you keep scrolling?"></textarea>
+      <div class="lock-row">
+        <span class="mono hint" id="lock-count"></span>
+        <button type="button" class="btn danger" id="lock-submit" disabled>Unlock and start</button>
+      </div>
+      <p class="hint">No sound? Click anywhere on this screen.</p>
+    </div>
+  </div>
+
+  <!-- Another tab took over -->
+  <div class="overlay tab-block" id="tab-block" hidden>
+    <div class="modal">
+      <h3>Open in another tab</h3>
+      <p>The timer is running in another tab. Only one tab can ring at a time.</p>
+      <div class="actions"><button type="button" class="btn primary" id="tab-take">Use this tab</button></div>
+    </div>
+  </div>
+
+  <div class="tooltip mono" id="tooltip" hidden></div>
+  <div class="toast" id="toast" hidden></div>
+</body>
+</html>
